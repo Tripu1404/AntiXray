@@ -1,8 +1,6 @@
 package cn.wode490390.nukkit.antixray;
 
 import cn.nukkit.Player;
-import cn.nukkit.block.Block;
-import cn.nukkit.level.GlobalBlockPalette;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.format.ChunkSection;
 import cn.nukkit.level.format.anvil.Anvil;
@@ -27,8 +25,8 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // Corrección: Usar .create(4096) en lugar de .createBitArray
-        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1.create(4096));
+        // Corrección definitiva para el constructor de PalettedBlockStorage
+        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1, 4096);
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
 
@@ -82,8 +80,8 @@ public class WorldHandler extends PluginTask<Plugin> {
                 } else if (section.getY() <= this.antixray.height) {
                     stream.put(SECTION_HEADER);
                     try {
-                        // Corrección: Forzar el índice de capa para satisfacer al compilador
-                        BlockStorage storage = section.getStorage(0); 
+                        // Corrección para obtener el almacenamiento sin índice de capa
+                        BlockStorage storage = section.getStorage(); 
                         stream.put(EMPTY_STORAGE);
                     } catch (Exception e) {
                         section.writeTo(1, stream, true);
