@@ -27,9 +27,8 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // SOLUCIÓN ERROR 1: Usamos una versión compatible con el constructor público
-        // Si V1 falla, intentamos inicializarlo con un BitArray por defecto
-        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1.createBitArray(4096));
+        // Corrección: Usar .create(4096) en lugar de .createBitArray
+        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1.create(4096));
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
 
@@ -83,12 +82,10 @@ public class WorldHandler extends PluginTask<Plugin> {
                 } else if (section.getY() <= this.antixray.height) {
                     stream.put(SECTION_HEADER);
                     try {
-                        // SOLUCIÓN ERROR 2: Intentar obtener el almacenamiento de la capa 0
-                        // En algunas versiones es getBlockStorage(), en otras getStorage() sin parámetros
-                        BlockStorage storage = section.getStorage(); 
+                        // Corrección: Forzar el índice de capa para satisfacer al compilador
+                        BlockStorage storage = section.getStorage(0); 
                         stream.put(EMPTY_STORAGE);
-                    } catch (NoSuchMethodError | Exception e) {
-                        // Fallback por si la API cambia el nombre del método en tiempo de ejecución
+                    } catch (Exception e) {
                         section.writeTo(1, stream, true);
                     }
                 } else {
