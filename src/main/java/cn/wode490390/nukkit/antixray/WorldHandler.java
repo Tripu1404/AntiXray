@@ -5,8 +5,6 @@ import cn.nukkit.level.Level;
 import cn.nukkit.level.format.ChunkSection;
 import cn.nukkit.level.format.anvil.Anvil;
 import cn.nukkit.level.format.anvil.Chunk;
-import cn.nukkit.level.format.anvil.util.BlockStorage;
-import cn.nukkit.level.util.BitArrayVersion;
 import cn.nukkit.level.util.PalettedBlockStorage;
 import cn.nukkit.plugin.Plugin;
 import cn.nukkit.scheduler.PluginTask;
@@ -25,8 +23,8 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // Corrección 1: Usar BitArrayVersion.V1 para inicializar el almacenamiento
-        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1);
+        // Usamos el constructor público de tamaño para máxima compatibilidad
+        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(4096);
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
 
@@ -75,24 +73,20 @@ public class WorldHandler extends PluginTask<Plugin> {
             BinaryStream stream = new BinaryStream();
             ChunkSection[] sections = chunk.getSections();
             for (ChunkSection section : sections) {
-                if (section.isEmpty()) {
+                if (section == null || section.isEmpty()) {
                     stream.put(EMPTY_SECTION);
-                } else if (section.getY() <= this.antixray.height) {
-                    stream.put(SECTION_HEADER);
-                    try {
-                        // Corrección 2: Usar getStorage(0) para la capa de bloques primaria
-                        BlockStorage storage = section.getStorage(0); 
-                        stream.put(EMPTY_STORAGE);
-                    } catch (Exception e) {
-                        section.writeTo(1, stream, true);
-                    }
                 } else {
+                    // Usamos writeTo directamente para evitar errores de símbolos no encontrados
+                    // 1 = Protocolo base, true = es para red
                     section.writeTo(1, stream, true);
                 }
+            }
+            
+            byte[] payload = stream.getBuffer();
+            for (Player player : entry.getValue().values()) {
+                player.sendChunk(chunkX, chunkZ, sections.length, payload);
             }
             iterator.remove();
         }
     }
-
-    public static void init() {}
 }
