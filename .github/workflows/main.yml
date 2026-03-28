@@ -45,14 +45,14 @@ jobs:
           cd out && jar cvf ../AntiXray.jar .
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Actualizado de v1/v2 a v4
         with:
-          name: AntiXray-Build
+          name: AntiXray-Jar
           path: AntiXray.jar
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2 # Recomendado actualizar a v2 también
         with:
           files: AntiXray.jar
         env:
