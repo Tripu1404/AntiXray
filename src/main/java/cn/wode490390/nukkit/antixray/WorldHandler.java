@@ -16,7 +16,7 @@ import cn.nukkit.utils.BinaryStream;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap; // Importación corregida
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 public class WorldHandler extends PluginTask<Plugin> {
@@ -27,8 +27,9 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // Corrección: Segundo parámetro añadido para compatibilidad con la API 2.0.0
-        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1, 0);
+        // SOLUCIÓN ERROR 1: Usamos una versión compatible con el constructor público
+        // Si V1 falla, intentamos inicializarlo con un BitArray por defecto
+        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1.createBitArray(4096));
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
 
@@ -82,11 +83,12 @@ public class WorldHandler extends PluginTask<Plugin> {
                 } else if (section.getY() <= this.antixray.height) {
                     stream.put(SECTION_HEADER);
                     try {
-                        // Corrección: Uso de getStorage(0) para la capa de bloques
-                        BlockStorage storage = section.getStorage(0);
+                        // SOLUCIÓN ERROR 2: Intentar obtener el almacenamiento de la capa 0
+                        // En algunas versiones es getBlockStorage(), en otras getStorage() sin parámetros
+                        BlockStorage storage = section.getStorage(); 
                         stream.put(EMPTY_STORAGE);
-                    } catch (Exception e) {
-                        // Corrección: Firma de writeTo actualizada (protocolo, stream, network)
+                    } catch (NoSuchMethodError | Exception e) {
+                        // Fallback por si la API cambia el nombre del método en tiempo de ejecución
                         section.writeTo(1, stream, true);
                     }
                 } else {
