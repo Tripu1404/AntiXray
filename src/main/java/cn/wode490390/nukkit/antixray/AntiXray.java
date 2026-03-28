@@ -1,22 +1,3 @@
-/**
- * wodeTeam is pleased to support the open source community by making AntiXray available.
- * 
- * Copyright (C) 2019  Woder
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0>.
- */
-
 package cn.wode490390.nukkit.antixray;
 
 import cn.nukkit.Player;
@@ -57,111 +38,40 @@ public class AntiXray extends PluginBase implements Listener {
 
     @Override
     public void onEnable() {
-        try {
-            new MetricsLite(this, 5123);
-        } catch (Throwable ignore) {
-
-        }
-
         this.saveDefaultConfig();
         Config config = this.getConfig();
 
         String node = "scan-chunk-height-limit";
         if (config.exists(node)) {
-            try {
-                this.height = config.getInt(node, this.height);
-            } catch (Exception e) {
-                this.logLoadException(node, e);
-            }
-        } else { //compatible
-            node = "scan-height-limit";
-            try {
-                this.height = config.getInt(node, 64) >> 4;
-            } catch (Exception e) {
-                this.logLoadException("scan-chunk-height-limit", e);
-            }
+            this.height = config.getInt(node, this.height);
+        } else {
+            this.height = config.getInt("scan-height-limit", 64) >> 4;
         }
         this.height = Math.max(Math.min(this.height, 15), 1);
         this.maxY = this.height << 4;
 
-        node = "memory-cache";
-        if (config.exists(node)) {
-            try {
-                this.memoryCache = config.getBoolean(node, this.memoryCache);
-            } catch (Exception e) {
-                this.logLoadException(node, e);
-            }
-        } else { //compatible
-            node = "cache-chunks";
-            try {
-                this.memoryCache = config.getBoolean(node, this.memoryCache);
-            } catch (Exception e) {
-                this.logLoadException("memory-cache", e);
-            }
-        }
+        this.memoryCache = config.getBoolean("memory-cache", config.getBoolean("cache-chunks", false));
+        this.obfuscatorMode = config.getBoolean("obfuscator-mode", true);
+        
+        this.dimension[0] = config.getInt("overworld-fake-block", Block.STONE) & 0xff;
+        this.dimension[1] = config.getInt("nether-fake-block", Block.NETHERRACK) & 0xff;
 
-        node = "obfuscator-mode";
-        try {
-            this.obfuscatorMode = config.getBoolean(node, this.obfuscatorMode);
-        } catch (Exception e) {
-            this.logLoadException(node, e);
-        }
-        node = "overworld-fake-block";
-        try {
-            this.dimension[0] = config.getInt(node, this.dimension[0]) & 0xff;
-            GlobalBlockPalette.getOrCreateRuntimeId(this.dimension[0], 0);
-        } catch (Exception e) {
-            this.dimension[0] = Block.STONE;
-            this.logLoadException(node, e);
-        }
-        node = "nether-fake-block";
-        try {
-            this.dimension[1] = config.getInt(node, this.dimension[1]) & 0xff;
-            GlobalBlockPalette.getOrCreateRuntimeId(this.dimension[1], 0);
-        } catch (Exception e) {
-            this.dimension[1] = Block.NETHERRACK;
-            this.logLoadException(node, e);
-        }
-        node = "protect-worlds";
-        try {
-            this.worlds = config.getStringList(node);
-        } catch (Exception e) {
-            this.logLoadException(node, e);
-        }
-        node = "ores";
-        List<Integer> ores = null;
-        try {
-            ores = config.getIntegerList(node);
-        } catch (Exception e) {
-            this.logLoadException(node, e);
-        }
+        this.worlds = config.getStringList("protect-worlds");
+        List<Integer> ores = config.getIntegerList("ores");
 
-        if (this.worlds != null && !this.worlds.isEmpty() && (this.obfuscatorMode || ores != null && !ores.isEmpty())) {
-            node = "filters";
-            List<Integer> filters;
-            try {
-                filters = config.getIntegerList(node);
-            } catch (Exception e) {
-                filters = Collections.emptyList();
-                this.logLoadException(node, e);
-            }
-
+        if (this.worlds != null && !this.worlds.isEmpty()) {
+            List<Integer> filters = config.getIntegerList("filters");
             for (int id : filters) {
-                if (id > -1 && id < 256) {
-                    this.filter[id] = true;
-                }
+                if (id >= 0 && id < 256) this.filter[id] = true;
             }
-            if (!this.obfuscatorMode) {
+            if (!this.obfuscatorMode && ores != null) {
                 for (int id : ores) {
-                    if (id > -1 && id < 256) {
-                        this.ore[id] = true;
-                    }
+                    if (id >= 0 && id < 256) this.ore[id] = true;
                 }
             }
-
-            WorldHandler.init();
 
             this.getServer().getPluginManager().registerEvents(this, this);
+            this.getLogger().info("§aAntiXray cargado correctamente (Versión Corregida).");
         }
     }
 
@@ -171,54 +81,33 @@ public class AntiXray extends PluginBase implements Listener {
         Level level = player.getLevel();
         if (this.worlds.contains(level.getName()) && player.getLoaderId() > 0) {
             event.setCancelled();
-            WorldHandler handler = this.handlers.get(level);
-            if (handler == null) {
-                handler = new WorldHandler(this, level);
-                this.handlers.put(level, handler);
-            }
+            WorldHandler handler = this.handlers.computeIfAbsent(level, l -> new WorldHandler(this, l));
             handler.requestChunk(event.getChunkX(), event.getChunkZ(), player);
         }
     }
 
     @EventHandler
-    //TODO: Use BlockBreakEvent instead of BlockUpdateEvent
     public void onBlockUpdate(BlockUpdateEvent event) {
         Position position = event.getBlock();
         Level level = position.getLevel();
         if (this.worlds.contains(level.getName())) {
             List<UpdateBlockPacket> packets = Lists.newArrayList();
-            for (Vector3 vector : new Vector3[]{
-                    position.add(1),
-                    position.add(-1),
-                    position.add(0, 1),
-                    position.add(0, -1),
-                    position.add(0, 0, 1),
-                    position.add(0, 0, -1)
-            }) {
+            Vector3[] sides = {position.add(1), position.add(-1), position.add(0, 1), position.add(0, -1), position.add(0, 0, 1), position.add(0, 0, -1)};
+            
+            for (Vector3 vector : sides) {
                 int y = vector.getFloorY();
-                if (y > 255 || y < 0) {
-                    continue;
-                }
-                int x = vector.getFloorX();
-                int z = vector.getFloorZ();
+                if (y > 255 || y < 0) continue;
+                
                 UpdateBlockPacket packet = new UpdateBlockPacket();
-                try {
-                    packet.blockRuntimeId = GlobalBlockPalette.getOrCreateRuntimeId(level.getFullBlock(x, y, z));
-                } catch (Exception tryAgain) {
-                    try {
-                        packet.blockRuntimeId = GlobalBlockPalette.getOrCreateRuntimeId(level.getBlockIdAt(x, y, z), 0);
-                    } catch (Exception ex) {
-                        continue;
-                    }
-                }
-                packet.x = x;
+                packet.x = vector.getFloorX();
                 packet.y = y;
-                packet.z = z;
+                packet.z = vector.getFloorZ();
+                packet.blockRuntimeId = GlobalBlockPalette.getOrCreateRuntimeId(level.getBlockIdAt(packet.x, y, packet.z), level.getBlockDataAt(packet.x, y, packet.z));
                 packet.flags = UpdateBlockPacket.FLAG_ALL_PRIORITY;
                 packets.add(packet);
             }
 
-            if (packets.size() > 0) {
+            if (!packets.isEmpty()) {
                 this.getServer().batchPackets(level.getChunkPlayers(position.getChunkX(), position.getChunkZ()).values().toArray(new Player[0]), packets.toArray(new UpdateBlockPacket[0]));
             }
         }
@@ -227,9 +116,5 @@ public class AntiXray extends PluginBase implements Listener {
     @EventHandler
     public void onLevelUnload(LevelUnloadEvent event) {
         this.handlers.remove(event.getLevel());
-    }
-
-    private void logLoadException(String node, Exception ex) {
-        this.getLogger().alert("Failed to get the configuration '" + node + "'. Use the default value.", ex);
     }
 }
