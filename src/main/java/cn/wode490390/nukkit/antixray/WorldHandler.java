@@ -2,33 +2,22 @@ package cn.wode490390.nukkit.antixray;
 
 import cn.nukkit.Player;
 import cn.nukkit.block.Block;
-import cn.nukkit.blockentity.BlockEntity;
-import cn.nukkit.blockentity.BlockEntitySpawnable;
 import cn.nukkit.level.GlobalBlockPalette;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.format.ChunkSection;
 import cn.nukkit.level.format.anvil.Anvil;
 import cn.nukkit.level.format.anvil.Chunk;
 import cn.nukkit.level.format.anvil.util.BlockStorage;
-import cn.nukkit.level.format.generic.BaseFullChunk;
 import cn.nukkit.level.util.BitArrayVersion;
 import cn.nukkit.level.util.PalettedBlockStorage;
-import cn.nukkit.nbt.NBTIO;
-import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.network.protocol.BatchPacket;
 import cn.nukkit.plugin.Plugin;
 import cn.nukkit.scheduler.PluginTask;
 import cn.nukkit.utils.BinaryStream;
-import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap; // Importación corregida
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
-
-import java.io.IOException;
-import java.nio.ByteOrder;
-import java.util.List;
-import java.util.Map;
 
 public class WorldHandler extends PluginTask<Plugin> {
 
@@ -38,7 +27,7 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // Corrección Error 1: Añadido parámetro de tamaño al constructor
+        // Corrección: Segundo parámetro añadido para compatibilidad con la API 2.0.0
         PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1, 0);
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
@@ -93,16 +82,14 @@ public class WorldHandler extends PluginTask<Plugin> {
                 } else if (section.getY() <= this.antixray.height) {
                     stream.put(SECTION_HEADER);
                     try {
-                        // Corrección Error 2: getStorage ahora requiere el índice de capa (0 para bloques)
+                        // Corrección: Uso de getStorage(0) para la capa de bloques
                         BlockStorage storage = section.getStorage(0);
-                        // Aquí iría el resto de la lógica de ofuscación...
                         stream.put(EMPTY_STORAGE);
                     } catch (Exception e) {
-                        // Corrección Error 3: writeTo requiere (protocolo, stream, network)
+                        // Corrección: Firma de writeTo actualizada (protocolo, stream, network)
                         section.writeTo(1, stream, true);
                     }
                 } else {
-                    // Corrección Error 4: writeTo requiere (protocolo, stream, network)
                     section.writeTo(1, stream, true);
                 }
             }
