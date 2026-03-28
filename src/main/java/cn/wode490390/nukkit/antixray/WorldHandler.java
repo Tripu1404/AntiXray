@@ -25,8 +25,8 @@ public class WorldHandler extends PluginTask<Plugin> {
 
     static {
         BinaryStream stream = new BinaryStream();
-        // Corrección definitiva para el constructor de PalettedBlockStorage
-        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1, 4096);
+        // Corrección: Usar el método create() para obtener el BitArray compatible
+        PalettedBlockStorage emptyStorage = new PalettedBlockStorage(BitArrayVersion.V1.create(4096));
         emptyStorage.writeTo(stream);
         EMPTY_STORAGE = stream.getBuffer();
 
@@ -80,8 +80,8 @@ public class WorldHandler extends PluginTask<Plugin> {
                 } else if (section.getY() <= this.antixray.height) {
                     stream.put(SECTION_HEADER);
                     try {
-                        // Corrección para obtener el almacenamiento sin índice de capa
-                        BlockStorage storage = section.getStorage(); 
+                        // Corrección: Usar getBlockStorage() en lugar de getStorage()
+                        BlockStorage storage = section.getBlockStorage(); 
                         stream.put(EMPTY_STORAGE);
                     } catch (Exception e) {
                         section.writeTo(1, stream, true);
